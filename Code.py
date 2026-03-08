@@ -19,9 +19,9 @@ NX = 18   # columns per row (X axis in GH)
 height = np.zeros((NY, NX), dtype=float)
 
 # ===== Audio =====
-SR = 16000          #Sampling rate (smaples per second)
-FRAME_MS = 60       #Frame length (lower = faster response)
-FRAME = int(SR * FRAME_MS / 1000)   #number of samples per frame
+SR = 16000          # Sampling rate (samples per second)
+FRAME_MS = 60       # Frame length (lower = faster response)
+FRAME = int(SR * FRAME_MS / 1000)   # number of samples per frame
 
 # ===== Tuning knobs =====
 GAIN = 90            # amplitude scaling (response strength: 20~120)

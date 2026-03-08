@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>521</width>
-    <height>866</height>
+    <width>464</width>
+    <height>880</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -25,7 +25,7 @@
    </property>
    <property name="styleSheet">
     <string notr="true">QWidget{
-background-color: #D7D2CB
+background-color: #303030
 }</string>
    </property>
    <layout class="QGridLayout" name="gridLayout">
@@ -37,27 +37,27 @@ background-color: #D7D2CB
          <colorrole role="Button">
           <brush brushstyle="SolidPattern">
            <color alpha="255">
-            <red>255</red>
-            <green>255</green>
-            <blue>255</blue>
+            <red>246</red>
+            <green>246</green>
+            <blue>246</blue>
            </color>
           </brush>
          </colorrole>
          <colorrole role="Base">
           <brush brushstyle="SolidPattern">
            <color alpha="255">
-            <red>255</red>
-            <green>255</green>
-            <blue>255</blue>
+            <red>246</red>
+            <green>246</green>
+            <blue>246</blue>
            </color>
           </brush>
          </colorrole>
          <colorrole role="Window">
           <brush brushstyle="SolidPattern">
            <color alpha="255">
-            <red>255</red>
-            <green>255</green>
-            <blue>255</blue>
+            <red>246</red>
+            <green>246</green>
+            <blue>246</blue>
            </color>
           </brush>
          </colorrole>
@@ -66,27 +66,27 @@ background-color: #D7D2CB
          <colorrole role="Button">
           <brush brushstyle="SolidPattern">
            <color alpha="255">
-            <red>255</red>
-            <green>255</green>
-            <blue>255</blue>
+            <red>246</red>
+            <green>246</green>
+            <blue>246</blue>
            </color>
           </brush>
          </colorrole>
          <colorrole role="Base">
           <brush brushstyle="SolidPattern">
            <color alpha="255">
-            <red>255</red>
-            <green>255</green>
-            <blue>255</blue>
+            <red>246</red>
+            <green>246</green>
+            <blue>246</blue>
            </color>
           </brush>
          </colorrole>
          <colorrole role="Window">
           <brush brushstyle="SolidPattern">
            <color alpha="255">
-            <red>255</red>
-            <green>255</green>
-            <blue>255</blue>
+            <red>246</red>
+            <green>246</green>
+            <blue>246</blue>
            </color>
           </brush>
          </colorrole>
@@ -95,27 +95,27 @@ background-color: #D7D2CB
          <colorrole role="Button">
           <brush brushstyle="SolidPattern">
            <color alpha="255">
-            <red>255</red>
-            <green>255</green>
-            <blue>255</blue>
+            <red>246</red>
+            <green>246</green>
+            <blue>246</blue>
            </color>
           </brush>
          </colorrole>
          <colorrole role="Base">
           <brush brushstyle="SolidPattern">
            <color alpha="255">
-            <red>255</red>
-            <green>255</green>
-            <blue>255</blue>
+            <red>246</red>
+            <green>246</green>
+            <blue>246</blue>
            </color>
           </brush>
          </colorrole>
          <colorrole role="Window">
           <brush brushstyle="SolidPattern">
            <color alpha="255">
-            <red>255</red>
-            <green>255</green>
-            <blue>255</blue>
+            <red>246</red>
+            <green>246</green>
+            <blue>246</blue>
            </color>
           </brush>
          </colorrole>
@@ -130,9 +130,8 @@ background-color: #D7D2CB
       </property>
       <property name="styleSheet">
        <string notr="true">QGroupBox{
-background-color: #FFFFFF;
+background-color: #F6F6F6;
 border: #E5751F
-
 }</string>
       </property>
       <property name="title">
@@ -149,28 +148,36 @@ border: #E5751F
         <widget class="QLabel" name="label_3">
          <property name="font">
           <font>
-           <pointsize>14</pointsize>
-           <weight>75</weight>
-           <bold>true</bold>
+           <pointsize>16</pointsize>
+           <weight>50</weight>
+           <bold>false</bold>
           </font>
          </property>
          <property name="styleSheet">
           <string notr="true">QLabel{
-background-color: #FFFFFF;
+background-color: #F6F6F6;
 color: #861F41
 }</string>
          </property>
          <property name="text">
-          <string>Impulse Response:</string>
+          <string>Auralization:</string>
          </property>
         </widget>
        </item>
        <item row="1" column="0">
         <widget class="QComboBox" name="comboBox_2">
+         <property name="font">
+          <font>
+           <pointsize>14</pointsize>
+          </font>
+         </property>
          <property name="styleSheet">
           <string notr="true">QComboBox{
-background-color: #F2F2F2
+background-color: #FFFFFF;
 }</string>
+         </property>
+         <property name="frame">
+          <bool>false</bool>
          </property>
         </widget>
        </item>
@@ -194,9 +201,9 @@ background-color: #F2F2F2
      <widget class="QGroupBox" name="input">
       <property name="styleSheet">
        <string notr="true">QGroupBox{
-background-color: #FFFFFF;
-border: #E5751F
-
+background-color: #F6F6F6;
+border: #E5751F;
+outline-color: #E5751F;
 }</string>
       </property>
       <property name="title">
@@ -204,11 +211,29 @@ border: #E5751F
       </property>
       <layout class="QGridLayout" name="gridLayout_4">
        <item row="1" column="0">
-        <widget class="QComboBox" name="comboBox">
+        <widget class="QComboBox" name="sound_input_choice">
+         <property name="font">
+          <font>
+           <pointsize>14</pointsize>
+           <kerning>false</kerning>
+          </font>
+         </property>
          <property name="styleSheet">
           <string notr="true">QComboBox{
-background-color: #F2F2F2
+background-color: #FFFFFF;
+placeholder-text-color: #000000;
+color: #000000
+}
+QComboBox::drop-down{
+background-color: #FFFFFF;
+placeholder-text-color: #000000
 }</string>
+         </property>
+         <property name="editable">
+          <bool>false</bool>
+         </property>
+         <property name="frame">
+          <bool>false</bool>
          </property>
         </widget>
        </item>
@@ -216,14 +241,14 @@ background-color: #F2F2F2
         <widget class="QLabel" name="label_2">
          <property name="font">
           <font>
-           <pointsize>14</pointsize>
-           <weight>75</weight>
-           <bold>true</bold>
+           <pointsize>16</pointsize>
+           <weight>50</weight>
+           <bold>false</bold>
           </font>
          </property>
          <property name="styleSheet">
           <string notr="true">QLabel{
-background-color: #FFFFFF;
+background-color: #F6F6F6;
 color: #861F41
 }</string>
          </property>
@@ -250,11 +275,14 @@ color: #861F41
     </item>
     <item row="2" column="0">
      <widget class="QGroupBox" name="grasshopper">
+      <property name="font">
+       <font>
+        <pointsize>14</pointsize>
+       </font>
+      </property>
       <property name="styleSheet">
        <string notr="true">QGroupBox{
-background-color: #FFFFFF;
-border: #E5751F
-
+background-color: #F6F6F6;
 }</string>
       </property>
       <property name="title">
@@ -265,14 +293,14 @@ border: #E5751F
         <widget class="QLabel" name="label">
          <property name="font">
           <font>
-           <pointsize>15</pointsize>
-           <weight>75</weight>
-           <bold>true</bold>
+           <pointsize>16</pointsize>
+           <weight>50</weight>
+           <bold>false</bold>
           </font>
          </property>
          <property name="styleSheet">
           <string notr="true">QLabel{
-background-color: #FFFFFF;
+background-color: #F6F6F6;
 color: #861F41
 }</string>
          </property>
@@ -298,8 +326,11 @@ color: #861F41
         <widget class="QComboBox" name="comboBox_3">
          <property name="styleSheet">
           <string notr="true">QComboBox{
-background-color: #F2F2F2
+background-color: #FFFFFF;
 }</string>
+         </property>
+         <property name="frame">
+          <bool>false</bool>
          </property>
         </widget>
        </item>
@@ -313,7 +344,7 @@ background-color: #F2F2F2
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>521</width>
+     <width>464</width>
      <height>26</height>
     </rect>
    </property>
