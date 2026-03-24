@@ -81,3 +81,5 @@ with sd.InputStream(channels=1, samplerate=SR, blocksize=FRAME) as stream:
         phase += PHASE_SPEED
 
         time.sleep(0.02)
+        
+#I made it#
