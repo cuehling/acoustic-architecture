@@ -6,8 +6,12 @@ from PyQt6.QtCore import QThread, QObject, pyqtSignal, pyqtSlot
 # 1. Define a Worker class that inherits from QObject
 class Worker(QObject):
     # Define signals the worker can emit
-    progress = pyqtSignal(int)
-    finished = pyqtSignal()
+    # Eventually May want a progress or something in here
+
+    # Define important attributes for initialization
+    sound_input = "microphone input"
+    gh_file = None
+
 
     @pyqtSlot()
     def run_task(self):

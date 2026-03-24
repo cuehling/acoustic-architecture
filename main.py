@@ -1,5 +1,6 @@
 import sys, os, re
 from PyQt6 import QtWidgets, uic
+from worker import Worker
 
 
 class MyApp(QtWidgets.QMainWindow):
@@ -22,6 +23,12 @@ class MyApp(QtWidgets.QMainWindow):
 
     def run_gh(self):
         print("Running GH")
+
+        audio = self.sound_input_choice.currentText()
+        gh = self.gh_input_choice.currentText()
+
+        print([audio, gh])
+
         pass
 
     def stop_gh(self):
@@ -59,7 +66,7 @@ class MyApp(QtWidgets.QMainWindow):
         else:
             contents = os.listdir(target_folder)
         
-        # Write Grasshopper Files in sound input dropdown menu
+        # Write Grasshopper Files in gh input dropdown menu
         for content in contents:
             gh_file = re.match(r'([\w-]+)\.(py)', content) 
             if gh_file:
