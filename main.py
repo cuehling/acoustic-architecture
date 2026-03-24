@@ -1,6 +1,6 @@
 import sys, os, re
 from PyQt6 import QtWidgets, uic
-from worker import Worker
+from audio_stream import AudioStream
 
 
 class MyApp(QtWidgets.QMainWindow):
@@ -21,20 +21,21 @@ class MyApp(QtWidgets.QMainWindow):
         self.run.clicked.connect(self.run_gh)
         self.stop.clicked.connect(self.stop_gh)
 
+    # ==================Button Functions========================
     def run_gh(self):
         print("Running GH")
 
         audio = self.sound_input_choice.currentText()
         gh = self.gh_input_choice.currentText()
 
-        print([audio, gh])
-
-        pass
+        audio_stream = AudioStream(audio, gh)
 
     def stop_gh(self):
         print("Stopping GH")
         pass
         
+    # ============= Initialization Functions ================
+
     def set_up_sound_input_choice(self):
         
         # Add Microphone Input
@@ -55,6 +56,7 @@ class MyApp(QtWidgets.QMainWindow):
             if audio_file:
                 self.sound_input_choice.addItem(audio_file.group(1))
     
+
     def set_up_grasshopper_input_choice(self):
 
         # Find Grasshopper Files Folder
