@@ -32,6 +32,7 @@ class MyApp(QtWidgets.QMainWindow):
 
     def stop_gh(self):
         print("Stopping GH")
+        
         pass
         
     # ============= Initialization Functions ================

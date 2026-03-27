@@ -8,11 +8,7 @@ import socket
 import time
 import numpy as np
 
-<<<<<<< HEAD
-# =========================
-# UDP
-# =========================
-=======
+
 >>>>>>> 03c94cb3d8dde8bd857317ca12555e473c4afa1f
 UDP_IP = "127.0.0.1"
 UDP_PORT = 9001
