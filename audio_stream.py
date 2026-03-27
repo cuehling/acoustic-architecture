@@ -7,7 +7,10 @@ import sounddevice as sd
 
 # 1. Define a Worker class that inherits from QObject
 class AudioStream(QThread):
-    # Define signals the worker can emit
+
+    # AudioStream Attributes
+    run = False
+    # Define signals the AudioStream can emit
 
     # Eventually May want a progress or something in here
 
@@ -18,55 +21,58 @@ class AudioStream(QThread):
     def __init__(self, audio=sound_input, gh=gh_file):
         print("initializing Worker Class...")
         print([audio, gh])
+        self.audo = audio
+        self.gh = gh
+        self.processor = gh
+
    
     def run_task(self):
-        pass
+        self.run = True
 
-    def collect_microphone_data():
+        while self.run:
 
-        # Show audio devices
-        print("\nAvailable audio input devices:\n")
-        devices = sd.query_devices()
+            raw_data = self.get_audio_chunk() # Get mic or file data
 
-        for i, d in enumerate(devices):
-            if d['max_input_channels'] > 0:   # 입력 가능한 장치만 표시
-                print(f"{i}: {d['name']}")
+            processed_data = self.processor.transform()
 
-        device_id = int(input("\nSelect device number: "))
+            # Send to Grasshopper (gHOWL)
+            message = ",".join(map(str, processed_data))
+            self.sock.sendto(message.encode(), ("127.0.0.1", 5005))
+        
 
-        # ===== UDP =====
-        UDP_IP = "127.0.0.1"
-        UDP_PORT = 9001
-        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    def collect_microphone_data(self):
+        if not self.device_id:
 
-        # ===== Audio =====
+            # Show audio devices
+            print("\nAvailable audio input devices:\n")
+            devices = sd.query_devices()
+
+            for i, d in enumerate(devices):
+                if d['max_input_channels'] > 0:   # 입력 가능한 장치만 표시
+                    print(f"{i}: {d['name']}")
+
+            self.device_id = int(input("\nSelect device number: "))
+
+        # Microphone Data Settings
         SR = 48000
         FRAME_MS = 60
         FRAME = int(SR * FRAME_MS / 1000)
 
-
         # ===== Audio Stream =====
-        with sd.InputStream(device=device_id,
+        with sd.InputStream(device= self.device_id,
                             channels=1,
                             samplerate=SR,
                             blocksize=FRAME) as stream:
 
-            while True:
+            # 1) Audio read
+            x, _ = stream.read(FRAME)
+            return x[:, 0].astype(np.float32)
+            
 
-                # 1) Audio read
-                x, _ = stream.read(FRAME)
-                x = x[:, 0].astype(np.float32)
-
-                # 2) Amplitude
-                rms = float(np.sqrt(np.mean(x*x) + 1e-12))
-                amp = rms * GAIN
-
-                # 8) UDP
-                msg = ",".join([f"{v:.4f}" for v in height.flatten()])
-                sock.sendto(msg.encode("utf-8"), (UDP_IP, UDP_PORT))
+               
 
     
 
 if __name__ == "__main__":
-    worker = Worker()
+    worker = AudioStream()
         
