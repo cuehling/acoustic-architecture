@@ -21,6 +21,8 @@ class MyApp(QtWidgets.QMainWindow):
         self.run.clicked.connect(self.run_gh)
         self.stop.clicked.connect(self.stop_gh)
 
+        self.audio_stream = AudioStream()
+
     # ==================Button Functions========================
     def run_gh(self):
         print("Running GH")
@@ -28,7 +30,29 @@ class MyApp(QtWidgets.QMainWindow):
         audio = self.sound_input_choice.currentText()
         gh = self.gh_input_choice.currentText()
 
-        audio_stream = AudioStream(audio, gh)
+        
+        if audio == 'microphone input':
+            devices = self.audio_stream.query_mic_input()
+            print(devices)
+            
+            QtWidgets.QDialog()
+
+            choice, ok = QtWidgets.QInputDialog.getItem(
+            None,             # Parent (QWidget or None)
+            "Selection Menu", # Title
+            "Choose Source:", # Label
+            devices,            # The List
+            0,                # Current Index
+            False             # Editable (False = Dropdown, True = Textbox)
+            )
+            if ok and choice:
+                print(f"User chose: {choice}")
+                id = re.match(r'([\d]+): ', choice)
+                print(id.group(1))
+                self.audio_stream.device_id = id.group(1)
+                
+        
+           
 
     def stop_gh(self):
         print("Stopping GH")
