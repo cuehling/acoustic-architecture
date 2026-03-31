@@ -41,7 +41,6 @@ class AudioStream(QThread):
             if self.audio == "microphone input":
                 raw_data = self.collect_mic_data()
             else:
-                print('Within else')
                 raw_data = self.collect_file_data()
 
             # Process Data
@@ -144,8 +143,3 @@ class AudioStream(QThread):
 
                
 
-if __name__ == "__main__":
-    worker = AudioStream()
-    content = worker.collect_audio_data()
-    print(content)
-        
