@@ -9,12 +9,11 @@ import time
 import numpy as np
 
 
->>>>>>> 03c94cb3d8dde8bd857317ca12555e473c4afa1f
 UDP_IP = "127.0.0.1"
 UDP_PORT = 9001
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
-<<<<<<< HEAD
+
 # =========================
 # Grid
 # =========================
@@ -201,7 +200,7 @@ with sd.InputStream(
         buffer_index = (buffer_index + 1) % BUFFER_LEN
         t += TIME_STEP
         time.sleep(TIME_STEP)
-=======
+# =======
 NX = 120
 NY = 60
 SPACING = 30.0
@@ -272,4 +271,4 @@ while True:
 
     t += TIME_STEP
     time.sleep(0.03)
->>>>>>> 03c94cb3d8dde8bd857317ca12555e473c4afa1f
+
