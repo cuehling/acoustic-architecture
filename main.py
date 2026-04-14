@@ -69,7 +69,7 @@ class AudioApp(QtWidgets.QMainWindow):
                 if id.group(1) == device['index']:
                     print(id.group(1))
                     # Set device with correct
-                    self.audio_stream.device_id = device
+                    self.audio_stream.file_data['device_id'] = device
 
         self.audio_stream.start()
 
@@ -139,7 +139,6 @@ class AudioApp(QtWidgets.QMainWindow):
             contents = os.listdir(target_folder)
             return contents
 
-        
         
 def main():
     print("Hello from acoustic-architecture!")

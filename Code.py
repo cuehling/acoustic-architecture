@@ -7,6 +7,7 @@ This is a temporary script file.
 import socket
 import time
 import numpy as np
+import sounddevice as sd
 
 
 UDP_IP = "127.0.0.1"

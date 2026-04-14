@@ -13,18 +13,28 @@ class AudioStream(QThread):
     # Attributes
     blocksize = 1024
 
+    # Microphone Data Settings
+    samplerate = 48000
+    frame_ms = 60
+    frame = int(samplerate * frame_ms / 1000)
+
+    # Socket
+    udp_ip = "127.0.0.1"
+    udp_port = 9001
+
+
     def __init__(self, **kwargs):
         super().__init__()
         print("initializing Audio Stream...")
         
-        self.audio     = kwargs.get('audio', 'microphone input')
+        self.file_data = {'name': kwargs.get('audio', 'microphone input'),
+                          'samplerate': self.samplerate,
+                          'frame': self.frame,
+                          'device_id': kwargs.get('device id', None),
+                          '': kwargs.get('blocksize', self.blocksize)}
         self.processor = kwargs.get('processor', None)
-        self.device_id = kwargs.get('device id', None)
         self.run       = False
-        self.contents  = None
-        self.file = None
 
-    
     def run(self):
         '''
         Function that runs within its own thread.
@@ -33,15 +43,26 @@ class AudioStream(QThread):
         3. Sends data to Grasshopper
         4. Repeats until stop button is pressed
         '''
+        # Start Running
         self.run = True
+
+        # Set up audio source
+        if self.file_data['name'] == "microphone input":
+                pass # Should eventually add
+        else:
+                file, file_data = self.collect_file_data()
+                self.file_data.update(file_data)
+
+        # Create GH Connection
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
         while self.run: # While audio stream is running (Stop is not pressed)
             
             # Collect audio data
-            if self.audio == "microphone input":
+            if self.file_data['name'] == "microphone input":
                 raw_data = self.collect_mic_data()
             else:
-                raw_data = self.collect_file_data()
+                raw_data = self.collect_file_data(file, file_data)
 
             # Process Data
             if self.processor:
@@ -50,52 +71,46 @@ class AudioStream(QThread):
                 processed_data = raw_data
 
             print(processed_data)
-            time.sleep(1)
-
+            processed_data = 200*processed_data
 
             # # Send to Grasshopper (gHOWL)
-            # message = ",".join(map(str, processed_data))
-            # self.sock.sendto(message.encode(), ("127.0.0.1", 5005))
+            msg = ",".join(f"{v:.5f}" for v in processed_data.T.flatten())
+            sock.sendto(msg.encode("utf-8"), (self.udp_ip, self.udp_port))
         
+
+
     # =================== Collecting Data Functions ==================
 
-    def collect_file_data(self):
+    def collect_file_data(self, file):
         
-        # Load file if necessary
-        if not self.file:
-            file = self.query_audio_file()  
-                
+        if self.block_num == self.blocksize:
+            self.block_num = 0
+
         with sf.SoundFile(file) as infile:
-            # Mirror input format exactly
-            samplerate = infile.samplerate
-            channels = infile.channels
-            subtype = infile.subtype
-                
+
+            print(infile.blocks(blocksize=self.blocksize))
             # Process in blocks to be memory efficient
-            for block in infile.blocks(blocksize=self.blocksize):
-                return block
+            for i, block in enumerate(infile.blocks(blocksize=self.blocksize)): 
+                if i == self.block_num:
+                    return block
                 
         print('audio reading did not work')
 
     def collect_mic_data(self):
         
-        # Microphone Data Settings
-        SR = 48000
-        FRAME_MS = 60
-        FRAME = int(SR * FRAME_MS / 1000)
-
-        # ===== Audio Stream =====
-        with sd.InputStream(device= self.device_id,
-                            channels=1,
-                            samplerate=SR,
-                            blocksize=FRAME) as stream:
+        # audio_stream the data
+        with sd.InputStream(device     = self.file_data['device_id'],
+                            channels   = 1,
+                            samplerate = self.file_data['samplerate'],
+                            blocksize  = self.file_data['frame']) as stream:
 
             # Audio read
             x, _ = stream.read(self.blocksize)
-            print(x[:, 0].astype(np.float32))
+            print(x[:, 0].astype(np.float32)) # Returns
+            stream.close()
             return x[:, 0].astype(np.float32)
             
-
+    # ================ Querying Data functions ======================
     def query_audio_file(self):
         
         # Find original location
@@ -110,17 +125,30 @@ class AudioStream(QThread):
         # Find audio file
         file = os.path.join(target_folder, f"{self.audio}.wav")
         print(f'Reading audio_file {self.audio}')
-        return file    
+
+        with sf.SoundFile(file) as infile:
+            file_data = {}
+            # Mirror input format exactly
+            file_data['samplerate'] = infile.samplerate
+            file_data['blocksize']  = self.blocksize
+            file_data['blocknum']   = 0
+            
+            blocks = infile.blocks(blocksize=self.blocksize)
+            return file, file_data
+        
+        print('Soundfile opening did not work. Is file corrupted??') 
+
 
     def query_mic_input(self):
 
         # Show audio devices
         devices = sd.query_devices()
-
-        # Remove virtual/stupid sound devices
+        
         device_list = []
         for i, d in enumerate(devices):
-            if d['max_input_channels'] > 0: # 입력 가능한 장치만 표시
+            # Remove virtual/stupid sound devices
+            print(d['name'])
+            if d['max_input_channels'] > 0 and not re.match('Speaker', d['name'], re.IGNORECASE): # 입력 가능한 장치만 표시
                 print(f"{i}: {d['name']}")
                 device_list.append(d)
         
@@ -141,5 +169,4 @@ class AudioStream(QThread):
         return target_folder
         
 
-               
 
