@@ -10,12 +10,10 @@ import socket
 import time
 import numpy as np
 import sounddevice as sd
-<<<<<<< HEAD
 
 # =========================
 # UDP
 # =========================
-
 UDP_IP = "127.0.0.1"
 UDP_PORT = 9001
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -286,3 +284,4 @@ with sd.InputStream(
         # ===== Advance =====
         buffer_index = (buffer_index + 1) % BUFFER_LEN
         t += TIME_STEP
+        time.sleep(TIME_STEP)
