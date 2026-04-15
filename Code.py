@@ -4,7 +4,6 @@ Spyder Editor
 
 This is a temporary script file.
 """
-"C:\Users\zmsxh\acoustic-architecture"
 
 import socket
 import time
@@ -23,7 +22,7 @@ sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 # =========================
 NX = 100
 NY = 72
-SPACING = 30.0
+SPACING = 10
 
 x = np.arange(NX) * SPACING
 y = np.arange(NY) * SPACING
@@ -32,8 +31,8 @@ X, Y = np.meshgrid(x, y)
 # =========================
 # Source positions
 # =========================
-SRC1 = (0, 1080, 0)
-SRC2 = (3000, 1080, 0)
+SRC1 = (0, 180, 0)
+SRC2 = (500, 360, 0)
 
 # =========================
 # Wave / propagation parameters
@@ -73,8 +72,8 @@ FREQ_SMOOTH = 0.08           # smaller = smoother
 DEFAULT_FREQ = 250.0         # fallback frequency
 
 # visual wavelength mapping
-MIN_WAVELENGTH = 120.0       # shortest visible spacing
-MAX_WAVELENGTH = 1000.0      # longest visible spacing
+MIN_WAVELENGTH = 60.0       # shortest visible spacing
+MAX_WAVELENGTH = 500.0      # longest visible spacing
 
 # optional stability threshold for FFT peak
 FFT_MAG_THRESHOLD = 0.01
