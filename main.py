@@ -1,4 +1,5 @@
 import sys, os, re
+import importlib.util
 from PyQt6 import QtWidgets, uic
 from audio_stream import AudioStream
 
@@ -23,10 +24,11 @@ class AudioApp(QtWidgets.QMainWindow):
         
         # Load the UI file
         uic.loadUi("gui.ui", self)
+        self.audio_stream = None
 
         # Set Up Dropdown menus
         self.set_up_sound_input_choice()
-        self.set_up_grasshopper_input_choice()
+        self.set_up_processor_input_choice()
 
         # Initialize Buttons
         self.run.clicked.connect(self.run_gh)
@@ -41,35 +43,22 @@ class AudioApp(QtWidgets.QMainWindow):
         audio = self.sound_input_choice.currentText()
         gh = self.gh_input_choice.currentText()
 
-        # Create AudioStream and send user's choices to it
-        self.audio_stream = AudioStream()
-        self.audio_stream.audio = audio
+        if self.audio_stream is None:
+            # Create AudioStream and send user's choices to it
+            self.audio_stream = AudioStream()
+            self.audio_stream.audio = audio
+
+        if self.audio_stream.run is True:
+            print('Program is already running')
+            return
 
         # Choose Sound Source
         if audio == 'microphone input':
-            # Query Which input device to use
-            devices = self.audio_stream.query_mic_input()
-            
-            # Sort through viable devices (work on this some more!)
-            device_list = []
-            for i, d in enumerate(devices):
-                print(f"{i}: {d['name']}")
-        
-                # Format devices for PyQT Use
-                index = d["index"]
-                name = d["name"]
-                device_list.append(f"{index}: "+f"{name}")
-            
-            # Choose device via dropdown menu
-            device_chosen = self.popup_query(title='Device Selection', list=device_list)
+            self.choose_mic_input()
 
-            # Find device associated
-            id = re.match(r'([\d]+): ', device_chosen)
-            for device in devices:
-                if id.group(1) == device['index']:
-                    print(id.group(1))
-                    # Set device with correct
-                    self.audio_stream.file_data['device_id'] = device
+        # Choose wave processor:
+        SelectedClass = self.choose_processor(gh)
+
 
         self.audio_stream.start()
 
@@ -93,7 +82,10 @@ class AudioApp(QtWidgets.QMainWindow):
             if audio_file:
                 self.sound_input_choice.addItem(audio_file.group(1))
     
-    def set_up_grasshopper_input_choice(self):
+    def set_up_processor_input_choice(self):
+        
+        # Add Microphone Input
+        self.gh_input_choice.addItem('None')
 
         # Find Audio Files Folder
         contents = self.find_folder('grasshopper')
@@ -104,6 +96,76 @@ class AudioApp(QtWidgets.QMainWindow):
             if gh_file:
                 self.gh_input_choice.addItem(gh_file.group(1))
         
+    # =================== Collect Input =====================
+
+    def choose_mic_input(self):
+        # Query Which input device to use
+        devices = self.audio_stream.query_mic_input()
+            
+        # Sort through viable devices (work on this some more!)
+        device_list = []
+        for i, d in enumerate(devices):
+            print(f"{i}: {d['name']}")
+        
+            # Format devices for PyQT Use
+            index = d["index"]
+            name = d["name"]
+            device_list.append(f"{index}: "+f"{name}")
+        
+        # Choose device via dropdown menu
+        device_chosen = self.popup_query(title='Device Selection', list=device_list)
+
+        # Find device associated
+        id = re.match(r'([\d]+): ', device_chosen)
+        for device in devices:
+            if id.group(1) == device['index']:
+                print(id.group(1))
+                # Set device with correct
+                self.audio_stream.file_data['device_id'] = device
+
+
+
+    # ===================================================
+    def choose_processor(self, module_name):
+        if module_name == 'None':
+            print('No Processor Chosen')
+            return None
+        
+        print(f'Module_name = {module_name + ".py"}')
+
+        # Find Grasshopper folder
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        gh_dir = os.path.join(current_dir, 'grasshopper')
+        module_path = os.path.join(gh_dir, f"{module_name}.py")
+        
+        if gh_dir not in sys.path:
+            sys.path.insert(0, gh_dir)
+            print(f"Error: The module path '{module_path}' does not exist in the script's directory.")
+
+        # Use importlib to load module from specific path
+        spec = importlib.util.spec_from_file_location(module_name, module_path)
+        
+        if spec is None:
+            raise ImportError(f"Could not load spec for {module_name} at {gh_dir}")
+        
+        # collect module folder
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        print(f"Module: {module}")
+
+        # convert from snake_case to PascalCase
+        class_name = "".join(word.capitalize() for word in module_name.split('_'))
+        print(f"Class Name: {class_name}")
+
+        # Return Class from the module
+        if hasattr(module, class_name):
+            SelectedClass = getattr(module, class_name)
+            return SelectedClass()
+        else:
+            raise AttributeError(f"Module '{module_name}' has no class named '{class_name}'")
+        
+        print('Choosing Processor Did not Work :(')
+
 
     # ============= Functional Functions ==================
     def popup_query(self, **kwargs):
@@ -134,7 +196,7 @@ class AudioApp(QtWidgets.QMainWindow):
         target_folder = os.path.join(script_dir, folder)
         
         if not os.path.isdir(target_folder):
-            print(f"Error: The folder 'audio_files' does not exist in the script's directory.")
+            print(f"Error: The folder {folder} does not exist in the script's directory.")
         else:
             contents = os.listdir(target_folder)
             return contents

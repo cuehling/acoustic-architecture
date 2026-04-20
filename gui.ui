@@ -101,7 +101,7 @@ color: #861F41
 }</string>
          </property>
          <property name="text">
-          <string>Grasshopper:</string>
+          <string>Audio Processing:</string>
          </property>
         </widget>
        </item>
@@ -120,6 +120,12 @@ color: #861F41
        </item>
        <item row="1" column="0">
         <widget class="QComboBox" name="gh_input_choice">
+         <property name="font">
+          <font>
+           <pointsize>14</pointsize>
+           <kerning>false</kerning>
+          </font>
+         </property>
          <property name="styleSheet">
           <string notr="true">QComboBox{
 background-color: #FFFFFF;

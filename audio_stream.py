@@ -47,11 +47,9 @@ class AudioStream(QThread):
         self.run = True
 
         # Set up audio source
-        if self.file_data['name'] == "microphone input":
-                pass # Should eventually add
-        else:
-                file, file_data = self.collect_file_data()
-                self.file_data.update(file_data)
+        if self.file_data['name'] != "microphone input":
+            file, file_data = self.collect_file_data()
+            self.file_data.update(file_data)
 
         # Create GH Connection
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -76,6 +74,7 @@ class AudioStream(QThread):
             # # Send to Grasshopper (gHOWL)
             msg = ",".join(f"{v:.5f}" for v in processed_data.T.flatten())
             sock.sendto(msg.encode("utf-8"), (self.udp_ip, self.udp_port))
+            time.sleep(.5)
         
 
 
