@@ -22,18 +22,31 @@ class AudioStream(QThread):
     udp_ip = "127.0.0.1"
     udp_port = 9001
 
+    # Audio Parameters
+    audio_gain   = 18.0    # Gain of signal
+    gate         = 0.008   # Gate for something
+    base_lvl     = 0.000   # idk what this is yet
+    audio_scale  = 1.4     # idk what this is yet
+    audio_smooth = 0.08    # idk what this is yet
+
+    # Transmission optimization
+    send_every_n_frames = 3
+    clip_value          = 9.9
+    scale_factor        = 10
+
 
     def __init__(self, **kwargs):
         super().__init__()
         print("initializing Audio Stream...")
         
-        self.file_data = {'name': kwargs.get('audio', 'microphone input'),
+        self.file_data = {'name'      : kwargs.get('audio', 'microphone input'),
                           'samplerate': self.samplerate,
-                          'frame': self.frame,
-                          'device_id': kwargs.get('device id', None),
-                          '': kwargs.get('blocksize', self.blocksize)}
+                          'frame'     : self.frame,
+                          'device_id' : kwargs.get('device id', None),
+                          'blocksize' : kwargs.get('blocksize', self.blocksize)}
         self.processor = kwargs.get('processor', None)
         self.run       = False
+
 
     def run(self):
         '''
@@ -51,6 +64,10 @@ class AudioStream(QThread):
             file, file_data = self.collect_file_data()
             self.file_data.update(file_data)
 
+        # Send over data to processor
+        if self.processor:
+            self.processor.audio_metadata = self.file_data
+
         # Create GH Connection
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
@@ -66,15 +83,17 @@ class AudioStream(QThread):
             if self.processor:
                 processed_data = self.processor.transform(raw_data)
             else:
-                processed_data = raw_data
+                processed_data = 200*raw_data
+                flat = processed_data.T.flatten()
+                scaled = np.round(np.clip(flat, -9.9, 9.9) * 10).astype(np.int16)
+                processed_data = ",".join(str(v) for v in scaled)
 
             print(processed_data)
-            processed_data = 200*processed_data
+
 
             # # Send to Grasshopper (gHOWL)
-            msg = ",".join(f"{v:.5f}" for v in processed_data.T.flatten())
-            sock.sendto(msg.encode("utf-8"), (self.udp_ip, self.udp_port))
-            time.sleep(.5)
+            sock.sendto(processed_data.encode("utf-8"), (self.udp_ip, self.udp_port))
+            # time.sleep(.2)
         
 
 

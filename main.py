@@ -57,8 +57,7 @@ class AudioApp(QtWidgets.QMainWindow):
             self.choose_mic_input()
 
         # Choose wave processor:
-        SelectedClass = self.choose_processor(gh)
-
+        self.audio_stream.processor = self.choose_processor(gh)
 
         self.audio_stream.start()
 
@@ -78,7 +77,7 @@ class AudioApp(QtWidgets.QMainWindow):
         contents = self.find_folder('audio_files')
         
         for content in contents:
-            audio_file = re.match(r'([\w-]+)\.(mp3|wav)', content) 
+            audio_file = re.match(r'([\w-]+)\.(wav)', content) 
             if audio_file:
                 self.sound_input_choice.addItem(audio_file.group(1))
     
