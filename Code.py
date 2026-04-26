@@ -4,6 +4,7 @@ Spyder Editor
 
 This is a temporary script file.
 """
+#C:\Users\zmsxh\acoustic-architecture
 
 import socket
 import time
@@ -20,10 +21,9 @@ sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 # =========================
 # Grid
 # =========================
-NX = 100
-NY = 72
-SPACING = 10
-
+NX = 120
+NY = 90
+SPACING = 20
 x = np.arange(NX) * SPACING
 y = np.arange(NY) * SPACING
 X, Y = np.meshgrid(x, y)
@@ -31,8 +31,8 @@ X, Y = np.meshgrid(x, y)
 # =========================
 # Source positions
 # =========================
-SRC1 = (0, 180, 0)
-SRC2 = (500, 360, 0)
+SRC1 = (0, 900, 0)
+SRC2 = (2400, 900, 0)
 
 # =========================
 # Wave / propagation parameters
@@ -66,14 +66,14 @@ AUDIO_SMOOTH = 0.08
 # =========================
 # Frequency analysis parameters
 # =========================
-MIN_FREQ = 80.0              # ignore rumble / very low noise
-MAX_FREQ = 1200.0            # upper analysis bound
+MIN_FREQ = 30.0              # ignore rumble / very low noise
+MAX_FREQ = 900.0            # upper analysis bound
 FREQ_SMOOTH = 0.08           # smaller = smoother
 DEFAULT_FREQ = 250.0         # fallback frequency
 
 # visual wavelength mapping
-MIN_WAVELENGTH = 60.0       # shortest visible spacing
-MAX_WAVELENGTH = 500.0      # longest visible spacing
+MIN_WAVELENGTH = 30.0       # shortest visible spacing
+MAX_WAVELENGTH = 300.0      # longest visible spacing
 
 # optional stability threshold for FFT peak
 FFT_MAG_THRESHOLD = 0.01
@@ -82,8 +82,8 @@ FFT_MAG_THRESHOLD = 0.01
 # Transmission optimization
 # =========================
 SEND_EVERY_N_FRAMES = 3
-CLIP_VALUE = 9.9
-SCALE_FACTOR = 10
+CLIP_VALUE = 30.0
+SCALE_FACTOR = 50
 
 # =========================
 # Device selection
@@ -257,7 +257,7 @@ with sd.InputStream(
             field = wave2
         else:
             field = wave1 + wave2
-
+        
         # Smooth visual output
         field_state = (1.0 - ALPHA) * field_state + ALPHA * field
         field_state = np.nan_to_num(field_state, nan=0.0, posinf=0.0, neginf=0.0)
