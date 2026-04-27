@@ -9,14 +9,14 @@ from audio_stream import AudioStream
 # Has two dropdown menus:
 # - audio source: choose between microphone input or .wav files
 # - Processor: choose what is simulated in Grasshopper
-#
-#
+
 # Has two buttons:
 # - Run: starts the program. Sends user input to the AudioStream Class.
 # - stop: ends the program
 
 
 class AudioApp(QtWidgets.QMainWindow):
+
 
     def __init__(self):
      
@@ -31,37 +31,56 @@ class AudioApp(QtWidgets.QMainWindow):
         self.set_up_processor_input_choice()
 
         # Initialize Buttons
-        self.run.clicked.connect(self.run_gh)
-        self.stop.clicked.connect(self.stop_gh)
+        self.run.clicked.connect(self.pressed_run)
+        self.stop.clicked.connect(self.pressed_stop)
 
         
-    # ==================Button Functions========================
+    # ================== Button Functions ========================
 
-    def run_gh(self):
-        print("Running GH")
+    def pressed_run(self):
+        '''
+        - Starts AudioStream, 
+        - Sends user choices/data to stream, 
+        - Starts AudioStream.run()
+        '''
+        print("Run was pressed")
+
         # Collect user's choices
         audio = self.sound_input_choice.currentText()
-        gh = self.gh_input_choice.currentText()
+        processor = self.gh_input_choice.currentText()
 
+        # Create AudioStream if needed
         if self.audio_stream is None:
-            # Create AudioStream and send user's choices to it
             self.audio_stream = AudioStream()
-            self.audio_stream.audio = audio
 
-        if self.audio_stream.run is True:
+        # Check if AudioStream is already running
+        elif self.audio_stream.run is True:
             print('Program is already running')
             return
 
+        # Start running
+        self.audio_stream.run = True
+
         # Choose Sound Source
         if audio == 'microphone input':
-            self.choose_mic_input()
+            device = self.choose_mic_input()
+            self.audio_stream.set_up_stream(audio, processor, device)
+        else:
+            self.audio_stream.set_up_stream(audio, processor)
 
-        # Choose wave processor:
-        self.audio_stream.processor = self.choose_processor(gh)
+        # If processor has inputs needed, create popups and answer them:
+        response = {}
+        if hasattr(self.audio_stream.processor, 'inputs'):
+            for question, options in self.audio_stream.processor.inputs.items():
+                choice = self.popup_query(title=question, list=options)
+                response.update({question: choice})
 
+            self.audio_stream.processor.set_up_processor(response)
+        
+        # Update audio_stream and start
         self.audio_stream.start()
 
-    def stop_gh(self):
+    def pressed_stop(self):
         print("Stopping GH")
         self.audio_stream.run = False
 
@@ -95,7 +114,7 @@ class AudioApp(QtWidgets.QMainWindow):
             if gh_file:
                 self.gh_input_choice.addItem(gh_file.group(1))
         
-    # =================== Collect Input =====================
+    # =================== Choose Inputs =====================
 
     def choose_mic_input(self):
         # Query Which input device to use
@@ -103,29 +122,26 @@ class AudioApp(QtWidgets.QMainWindow):
             
         # Sort through viable devices (work on this some more!)
         device_list = []
-        for i, d in enumerate(devices):
-            print(f"{i}: {d['name']}")
-        
-            # Format devices for PyQT Use
-            index = d["index"]
-            name = d["name"]
-            device_list.append(f"{index}: "+f"{name}")
+        for d in devices:
+            print(f"{d['index']}: {d['name']}")
+            device_list.append(f"{d['index']}: {d['name']}")
         
         # Choose device via dropdown menu
         device_chosen = self.popup_query(title='Device Selection', list=device_list)
 
         # Find device associated
-        id = re.match(r'([\d]+): ', device_chosen)
-        for device in devices:
-            if id.group(1) == device['index']:
-                print(id.group(1))
-                # Set device with correct
-                self.audio_stream.file_data['device_id'] = device
-
+        if device_chosen:
+            id = re.match(r'([\d]+): ', device_chosen)
+            for device in devices:
+                if id.group(1) == device['index']:
+                    return device
+        else:
+            print('No device chosen.')
 
 
     # ===================================================
     def choose_processor(self, module_name):
+        # If none was chosen, return None
         if module_name == 'None':
             print('No Processor Chosen')
             return None
@@ -137,13 +153,10 @@ class AudioApp(QtWidgets.QMainWindow):
         gh_dir = os.path.join(current_dir, 'grasshopper')
         module_path = os.path.join(gh_dir, f"{module_name}.py")
         
-        if gh_dir not in sys.path:
-            sys.path.insert(0, gh_dir)
-            print(f"Error: The module path '{module_path}' does not exist in the script's directory.")
-
         # Use importlib to load module from specific path
         spec = importlib.util.spec_from_file_location(module_name, module_path)
         
+        # If loading didn't work:
         if spec is None:
             raise ImportError(f"Could not load spec for {module_name} at {gh_dir}")
         
@@ -162,19 +175,19 @@ class AudioApp(QtWidgets.QMainWindow):
             return SelectedClass()
         else:
             raise AttributeError(f"Module '{module_name}' has no class named '{class_name}'")
-        
-        print('Choosing Processor Did not Work :(')
 
 
     # ============= Functional Functions ==================
     def popup_query(self, **kwargs):
         
+        # Get data from kwargs
         QtWidgets.QDialog()
-        title = kwargs.get('title', '')
-        label = kwargs.get('label', None)
-        list = kwargs.get('list', None)
+        title    = kwargs.get('title', '')
+        label    = kwargs.get('label', None)
+        list     = kwargs.get('list', None)
         editable = kwargs.get('editable', False)
         
+        # Create Popups with choices
         choice, ok = QtWidgets.QInputDialog.getItem(
         None,             # Parent (QWidget or None)
         title,            # Title
@@ -183,10 +196,16 @@ class AudioApp(QtWidgets.QMainWindow):
         0,                # Current Index
         False             # Editable (False = Dropdown, True = Textbox)
         )
+
+        # Return choice
         if ok and choice:
             print(f"User chose: {choice}")
             return choice
-    
+        else:
+            print("Closing Program...")
+            self.stop_gh()
+            return None
+
     def find_folder(self, folder):
         # Find original location
         script_dir = os.path.dirname(os.path.abspath(__file__))

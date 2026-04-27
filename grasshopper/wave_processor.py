@@ -1,4 +1,4 @@
-import socket
+
 import time
 import numpy as np
 import sounddevice as sd
@@ -6,32 +6,32 @@ import sounddevice as sd
 
 class WaveProcessor():
 
+    inputs = { 'Choose Mode: ':[ 'Source 1',
+                                'Source 2',
+                                'Both Sources' ]}
+    response = {}
+
     # Grid 
-    nx = 100
-    ny = 72
+    nx = 120
+    ny = 90
     spacing = 10
 
     # Source Position
-    src1 = (  0, 180, 0)
-    src2 = (500, 360, 0)
-    src3 = (400,   0, 0)
+    src1 = (  0, 0.5,  0) 
+    src2 = (  1, 0.5,  0)
 
     # Wave Propagation Parameters
     vis_speed = 1200.0  # Propagation Speed
     osc_speed = 0.45    # oscillation speed for source 1
-    att       = 0.00075 # Attenuation for source
+    att       = 0.0025  # Attenuation for source
     amp       = 4.0     # Amplitude for source
     phase     = 0.0     # Phase for source
     time_step = 0.03    # time step
     alpha     = 0.18    # field smoothing
 
-    # Audio parameters
-    SR = 48000
-    FRAME_MS = 50
-    FRAME = int(SR * FRAME_MS / 1000)
 
     audio_gain   = 18.0
-    gate         = 0.008
+    gate         = 0.001
     base_lvl     = 0.00
     audio_scale  = 1.4
     audio_smooth = 0.08
@@ -55,38 +55,26 @@ class WaveProcessor():
     clip_value          = 9.9
     scale_factor        = 10
 
-    def __init__(self):
-        self.audio_metadata = None
+    def __init__(self, x, y, metadata):
+        
 
         print('Initializing Wave Processor...')
+        print(metadata)
 
-        # Precompute Distances
-        x = np.arange(self.nx) * self.spacing
-        y = np.arange(self.ny) * self.spacing
         self.X, self.Y = np.meshgrid(x, y)
+        self.audio_metadata = metadata
+        self.sr = metadata['samplerate']
 
-        print("\nSelect mode:")
-        print("1 = wave1 only")
-        print("2 = wave2 only")
-        print("3 = wave1 + wave2")
-
-        mode_input = input("Enter mode (1/2/3): ")
-
-        if mode_input == "1":
-            self.mode = 0
-        elif mode_input == "2":
-            self.mode = 1
-        else:
-            self.mode = 2
+        self.src1 = (x[-1]*self.src1[0], y[-1]*self.src1[1], 0)
+        self.src2 = (x[-1]*self.src2[0], y[-1]*self.src2[1], 0)
+        print(f"src1: {self.src1}, src2: {self.src2}")
 
         # Precompute Distances
         self.r1 = np.sqrt((self.X - self.src1[0])**2 + (self.Y - self.src1[1])**2 + self.eps)
         self.r2 = np.sqrt((self.X - self.src2[0])**2 + (self.Y - self.src2[1])**2 + self.eps)
-        self.r3 = np.sqrt((self.X - self.src3[0])**2 + (self.Y - self.src3[1])**2 + self.eps)
         
         self.env1 = np.exp(-self.att * self.r1)
         self.env2 = np.exp(-self.att * self.r2)
-        self.env3 = np.exp(-self.att * self.r3)
 
         # Delay buffer setup
         max_r = max(np.max(self.r1), np.max(self.r2))
@@ -108,17 +96,30 @@ class WaveProcessor():
         self.t = 0.0
         self.frame_count = 0
 
-    def set_up_processor(self, audio_metadata):
-        pass
+    def set_up_processor(self, response_dict=None):
+
+        # Collect Source Data
+        if response_dict:
+            for key1, value1 in response_dict.items():
+                if key1 == 'Choose Mode: ':
+                    if value1 == 'Source 1':
+                        self.mode = 0
+                    elif value1 == 'Source 2':
+                        self.mode = 1
+                    else:
+                        self.mode = 2
+        
+        
+        
+
 
     # ======================================================================
-    def transform(self, raw_audio):
+    def transform(self, t_scalar, raw_audio):
 
         # read data
         audio = raw_audio.astype(np.float32)
 
-        # get audio metadata
-        self.samplerate = self.audio_metadata['samplerate']
+        t = t_scalar[-1]
 
         # ===== Amplitude (RMS) =====
         rms = float(np.sqrt(np.mean(audio * audio) + 1e-12))
@@ -133,7 +134,7 @@ class WaveProcessor():
         self.audio_state = (1.0 - self.audio_smooth) * self.audio_state + self.audio_smooth * amp
 
         # ===== Frequency estimation =====
-        dominant_freq = self.estimate_dominant_frequency(audio, self.samplerate)
+        dominant_freq = self.estimate_dominant_frequency(audio, self.sr)
 
         if dominant_freq is not None and amp > 0.0:
             self.freq_state = (1.0 - self.freq_smooth) * self.freq_state + self.freq_smooth * dominant_freq
@@ -156,8 +157,10 @@ class WaveProcessor():
         # ===== Traveling-looking waves =====
         w1 = 2.0 * np.pi * self.osc_speed
         w2 = 2.0 * np.pi * self.osc_speed
-        wave1 = gain1 * self.amp * np.sin(k * self.r1 - w1 * self.t + self.phase) * self.env1
-        wave2 = gain2 * self.amp * np.sin(k * self.r2 - w2 * self.t + self.phase) * self.env2
+
+
+        wave1 = gain1 * self.amp * np.sin( k * self.r1 + w1 * t) * self.env1
+        wave2 = gain2 * self.amp * np.sin( k * self.r2 + w2 * t) * self.env2
 
         if self.mode == 0:
             field = wave1
@@ -170,17 +173,16 @@ class WaveProcessor():
         self.field_state = (1.0 - self.alpha) * self.field_state + self.alpha * field
         self.field_state = np.nan_to_num(self.field_state, nan=0.0, posinf=0.0, neginf=0.0)
 
-        # ===== Send to Grasshopper less frequently =====
-        # self.frame_count = 0
-        # if self.frame_count % self.send_every_n_frames == 0:
-
         flat = self.field_state.T.flatten()
 
         scaled = np.round(
             np.clip(flat, -self.clip_value, self.clip_value) * self.scale_factor
         ).astype(np.int16)
 
-        msg = ",".join(str(v) for v in scaled)
+        print(f"before msg: {scaled}")
+
+        # msg = ",".join(str(v) for v in scaled)
+        msg = ",".join(scaled.astype(str))
 
         # optional debug
         print(
@@ -189,9 +191,7 @@ class WaveProcessor():
         )
 
         # ===== Advance =====
-        self.buffer_index = (self.buffer_index + 1) % self.buffer_len
-        self.t += self.time_step 
-        time.sleep(self.time_step)
+        self.buffer_index = (self.buffer_index + 1) % self.buffer_len 
         return msg
 
         
