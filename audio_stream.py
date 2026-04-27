@@ -1,10 +1,11 @@
 import os, re
 from PyQt6.QtCore import QThread
-import socket, time
+import socket
 import numpy as np
 import sounddevice as sd
 import soundfile as sf
 import importlib.util
+import struct
 
 # Class handles the streaming of data from the sound source input
 # to the transformation then finally to grasshopper
@@ -13,19 +14,12 @@ class AudioStream(QThread):
 
     # Default Data Settings
     metadata = {'samplerate': 48000,
-                'frame'     : 128}
-
-    # Audio Parameters
-    audio_gain   = 18.0    # Gain of signal
-    gate         = 0.008   # Gate for something
-    base_lvl     = 0.000   # idk what this is yet
-    audio_scale  = 1.4     # idk what this is yet
-    audio_smooth = 0.08    # idk what this is yet
+                'frame'     : 256}
 
     # Transmission optimization
-    send_every_n_frames = 3
-    clip_value          = 9.9
-    scale_factor        = 10
+    send_every_n_frames = 1
+    clip_value          = 40
+    scale_factor        = 5
 
     # Grid 
     nx = 120
@@ -35,6 +29,7 @@ class AudioStream(QThread):
     # Transmission
     udp_ip   = "127.0.0.1"
     udp_port = 9001
+
 
     def __init__(self):
         super().__init__()
@@ -62,7 +57,7 @@ class AudioStream(QThread):
         if processor == 'None':
             self.processor = None
         else:
-            self.processor = self.choose_processor(processor)(self.x, self.y, self.metadata)
+            self.processor = self.choose_processor(processor)(self.nx, self.ny, self.spacing, self.metadata)
         
         # Create GH Connection
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -92,32 +87,32 @@ class AudioStream(QThread):
                     t = (np.arange(0, frame, dtype=np.float32) + block_num*frame)/sr
 
                     raw_data, _ = stream.read(frame)
-                    raw_data = raw_data[:, 0].astype(np.float32)
+                    raw_data = 20*raw_data[:, 0].astype(np.float32)
 
                     if self.processor:
                         processed_data = self.processor.transform(t, raw_data)
                     else:
-                        processed_data = 20*raw_data
-                        flat = processed_data.T.flatten()
-                        scaled = np.round(np.clip(flat, -9.9, 9.9) * 10).astype(np.int16)
-                        processed_data = ",".join(scaled.astype(str))
-
-                    # print(processed_data)
+                        avg = np.mean(np.sqrt(raw_data**2))
+                        processed_data = avg*np.ones((self.nx, self.ny), dtype=np.int8)
+                        processed_data = np.nan_to_num(processed_data, nan=0.0, posinf=0.0, neginf=0.0)
                     
+                    flat = processed_data.T.flatten()  
+                    scaled = np.round(np.clip(flat, -self.clip_value, self.clip_value) * self.scale_factor).astype(np.int16)
+                    msg = ",".join(scaled.astype(str))
+                   
                     # Send to Grasshopper (gHOWL)
-                    if block_num % 2 == 0:
-                        self.sock.sendto(processed_data.encode("utf-8"), (self.udp_ip, self.udp_port))
+                    if block_num % self.send_every_n_frames == 0:
+                        self.sock.sendto(msg.encode("utf-8"), (self.udp_ip, self.udp_port))
+                    
                     block_num += 1
 
-        else:
-            # blocks
-            block_num = 0
-
+        else: 
+            # Read audio file
             blocks = []
-
             for block in sf.blocks(self.file, blocksize=frame, dtype='float32'):
                 blocks.append(block)
             
+            # collect max to normalize total audio file
             tot = []
             for block in blocks:
                 for sample in block:
@@ -125,11 +120,10 @@ class AudioStream(QThread):
             max = np.max(tot)
 
             print(f'Maximum: {max}')
-            blocks = 1/max * np.array(blocks, dtype=object)
+            raw_data = 1/max * np.array(blocks, dtype=object)
 
             while self.run:
 
-                print("="*80)
                 t = (np.arange(0, frame, dtype=np.float32) + block_num*frame)/sr
                 
                 if block_num == len(blocks):
@@ -137,18 +131,21 @@ class AudioStream(QThread):
                 
                 # Process in blocks to be memory efficient 
                 if self.processor:
-                    processed_data = self.processor.transform(t, blocks[block_num][:])
+                    processed_data = self.processor.transform(t, raw_data[block_num][:])
                 else:
-                    processed_data = 20*blocks[block_num][:]
-                    flat = processed_data.T.flatten()
-                    scaled = np.round(np.clip(flat, -9.9, 9.9) * 10).astype(np.int16)
-                    processed_data = ",".join(scaled.astype(str))
+                    avg = np.mean(np.sqrt(raw_data[block_num][:]**2))
+                    processed_data = avg*np.ones((self.nx, self.ny), dtype=np.int8)
+                    processed_data = np.nan_to_num(processed_data, nan=0.0, posinf=0.0, neginf=0.0)
                 
+                flat = processed_data.T.flatten()  
+                scaled = np.round(np.clip(flat, -self.clip_value, self.clip_value) * self.scale_factor).astype(np.int8)
+                msg = ",".join(scaled.astype(str))
+                   
                 # Send to Grasshopper (gHOWL)
-                if block_num % 2 == 0:
-                    self.sock.sendto(processed_data.encode("utf-8"), (self.udp_ip, self.udp_port))
+                if block_num % self.send_every_n_frames == 0:
+                    self.sock.sendto(msg.encode("utf-8"), (self.udp_ip, self.udp_port))
+                
                 block_num += 1
-
 
     # ================ Querying Data functions ======================
     def query_audio_file(self):

@@ -9,32 +9,21 @@ class WaveProcessor():
     inputs = { 'Choose Mode: ':[ 'Source 1',
                                 'Source 2',
                                 'Both Sources' ]}
-    response = {}
-
-    # Grid 
-    nx = 120
-    ny = 90
-    spacing = 10
 
     # Source Position
     src1 = (  0, 0.5,  0) 
     src2 = (  1, 0.5,  0)
 
     # Wave Propagation Parameters
-    vis_speed = 1200.0  # Propagation Speed
-    osc_speed = 0.45    # oscillation speed for source 1
-    att       = 0.0025  # Attenuation for source
-    amp       = 4.0     # Amplitude for source
-    phase     = 0.0     # Phase for source
-    time_step = 0.03    # time step
-    alpha     = 0.18    # field smoothing
+    osc_speed = 0.005   # oscillation speed
+    att       = 0.003  # Attenuation for source
+    alpha     = 0.25    # field smoothing
 
-
-    audio_gain   = 18.0
-    gate         = 0.001
+    audio_gain   = 5
+    gate         = 0.002
     base_lvl     = 0.00
     audio_scale  = 1.4
-    audio_smooth = 0.08
+    audio_smooth = 0.01
 
     # Frequency Parameters
     min_freq = 80.0        # ignore rumble
@@ -43,7 +32,7 @@ class WaveProcessor():
     default_freq = 250.0   # fallback freq
 
     # visual wavelength mapping
-    min_wavelength = 60.0  # shortest visible spacing
+    min_wavelength = 50.0  # shortest visible spacing
     max_wavelength = 500.0 # longest visible spacing
     eps = 1e-6
 
@@ -51,19 +40,20 @@ class WaveProcessor():
     fft_mag_threshold = 0.01
 
     # Transmission Optimization
-    send_every_n_frames = 3
-    clip_value          = 9.9
+    clip_value          = 20
     scale_factor        = 10
 
-    def __init__(self, x, y, metadata):
-        
-
+    def __init__(self, nx, ny, spacing, metadata):
         print('Initializing Wave Processor...')
         print(metadata)
+
+        x = np.arange(0, nx) * spacing
+        y = np.arange(0, ny) * spacing
 
         self.X, self.Y = np.meshgrid(x, y)
         self.audio_metadata = metadata
         self.sr = metadata['samplerate']
+        self.time_step = metadata['frame'] / metadata['samplerate']
 
         self.src1 = (x[-1]*self.src1[0], y[-1]*self.src1[1], 0)
         self.src2 = (x[-1]*self.src2[0], y[-1]*self.src2[1], 0)
@@ -76,25 +66,10 @@ class WaveProcessor():
         self.env1 = np.exp(-self.att * self.r1)
         self.env2 = np.exp(-self.att * self.r2)
 
-        # Delay buffer setup
-        max_r = max(np.max(self.r1), np.max(self.r2))
-        max_delay_sec = max_r / self.vis_speed
-
-        buffer_sec = max_delay_sec + 1.0
-        self.buffer_len = int(buffer_sec / self.time_step) + 10
-
-        self.audio_buffer = np.full(self.buffer_len, self.base_lvl, dtype=np.float32)
-        self.buffer_index = 0
-
-        self.delay_steps1 = np.round((self.r1 / self.vis_speed) / self.time_step).astype(np.int32)
-        self.delay_steps2 = np.round((self.r2 / self.vis_speed) / self.time_step).astype(np.int32)
-
         # States
-        self.field_state = np.zeros((self.ny, self.nx), dtype=np.float32)
+        self.field_state = np.zeros((ny, nx), dtype=np.float32)
         self.audio_state = 0.0
-        self.freq_state = self.default_freq
-        self.t = 0.0
-        self.frame_count = 0
+        self.freq_state  = 0.0
 
     def set_up_processor(self, response_dict=None):
 
@@ -110,79 +85,59 @@ class WaveProcessor():
                         self.mode = 2
         
         
-        
-
-
     # ======================================================================
     def transform(self, t_scalar, raw_audio):
 
         # read data
         audio = raw_audio.astype(np.float32)
-
         t = t_scalar[-1]
 
-        # ===== Amplitude (RMS) =====
+        #  1.) Amplitude Tracking (RMS)
         rms = float(np.sqrt(np.mean(audio * audio) + 1e-12))
-        amp = rms * self.audio_gain
+        amp_env = (rms * self.audio_gain)
+        print(amp_env)
 
-        if amp < self.gate:
-            amp = 0.0
+        # Use a fast attack to catch the sound, but a slow release to let it linger
+        target_amp = amp_env # This is your incoming mic level
 
-        amp = min(amp, 1.0)
+        # ATTACK: Fast response to new sound   
+        if target_amp > self.audio_state: alpha = 0.2 
+        # RELEASE: Very slow fade out
+        else: alpha = 0.005 
 
-        # Smooth envelope
-        self.audio_state = (1.0 - self.audio_smooth) * self.audio_state + self.audio_smooth * amp
+        self.audio_state = (1.0 - alpha) * self.audio_state + alpha * target_amp
 
-        # ===== Frequency estimation =====
-        dominant_freq = self.estimate_dominant_frequency(audio, self.sr)
+        # if amp_env < self.gate: amp_env = 0.0
+        # self.audio_state = (1.0 - self.audio_smooth) * self.audio_state + self.audio_smooth * amp_env
 
-        if dominant_freq is not None and amp > 0.0:
-            self.freq_state = (1.0 - self.freq_smooth) * self.freq_state + self.freq_smooth * dominant_freq
+        #  2.) Frequency with Clamping
+        dom_freq = self.estimate_dominant_frequency(audio, self.sr)
 
-        # Convert frequency to visual wavelength
+        if dom_freq is not None and amp_env > 0.0:
+            self.freq_state = (1.0 - self.freq_smooth) * self.freq_state + self.freq_smooth * dom_freq
+
+        #  3.) Antialiasing mapping 
         wavelength_dynamic = self.map_frequency_to_wavelength(self.freq_state)
         k = 2.0 * np.pi / wavelength_dynamic
 
-        # ===== Store source excitation history =====
+        #   4.) Oscillation Freq Decoupling 
+        w = 2.0 * np.pi * self.osc_speed * dom_freq *0.1
+        
+        # 5. Field Calculation (store source excitation history)
         current_excitation = self.base_lvl + self.audio_scale * self.audio_state
-        self.audio_buffer[self.buffer_index] = current_excitation
+        
+       
+        wave1 = amp_env * current_excitation* np.sin( - k * self.r1 + w * t) * self.env1
+        wave2 = amp_env * current_excitation* np.sin( - k * self.r2 + w * t) * self.env2
 
-        # ===== Get delayed excitation for each point =====
-        idx1 = (self.buffer_index - self.delay_steps1) % self.buffer_len 
-        idx2 = (self.buffer_index - self.delay_steps2) % self.buffer_len
+        #  6.) Mode Selection
+        if self.mode == 0:   field = wave1
+        elif self.mode == 1: field = wave2
+        else:                field = wave1 + wave2
 
-        gain1 = self.audio_buffer[idx1]
-        gain2 = self.audio_buffer[idx2]
-
-        # ===== Traveling-looking waves =====
-        w1 = 2.0 * np.pi * self.osc_speed
-        w2 = 2.0 * np.pi * self.osc_speed
-
-
-        wave1 = gain1 * self.amp * np.sin( k * self.r1 + w1 * t) * self.env1
-        wave2 = gain2 * self.amp * np.sin( k * self.r2 + w2 * t) * self.env2
-
-        if self.mode == 0:
-            field = wave1
-        elif self.mode == 1:
-            field = wave2
-        else:
-            field = wave1 + wave2
-
-        # Smooth visual output
+        #   7.) Spatial Smoothing 
         self.field_state = (1.0 - self.alpha) * self.field_state + self.alpha * field
         self.field_state = np.nan_to_num(self.field_state, nan=0.0, posinf=0.0, neginf=0.0)
-
-        flat = self.field_state.T.flatten()
-
-        scaled = np.round(
-            np.clip(flat, -self.clip_value, self.clip_value) * self.scale_factor
-        ).astype(np.int16)
-
-        print(f"before msg: {scaled}")
-
-        # msg = ",".join(str(v) for v in scaled)
-        msg = ",".join(scaled.astype(str))
 
         # optional debug
         print(
@@ -190,13 +145,7 @@ class WaveProcessor():
             f"lambda={wavelength_dynamic:7.1f}"
         )
 
-        # ===== Advance =====
-        self.buffer_index = (self.buffer_index + 1) % self.buffer_len 
-        return msg
-
-        
-
-        
+        return self.field_state
 
 
     # ==============  Helper Functions  =====================
@@ -217,7 +166,7 @@ class WaveProcessor():
         Returns None when no reliable peak is found.
         """
         if len(audio_frame) == 0:
-            return None
+            return self.default_freq
 
         # remove DC
         sig = audio_frame - np.mean(audio_frame)
@@ -231,19 +180,19 @@ class WaveProcessor():
         # valid band only
         valid = (freqs >= self.min_freq) & (freqs <= self.max_freq)
         if not np.any(valid):
-            return None
+            return self.default_freq
 
         freqs_valid = freqs[valid]
         mag_valid = mag[valid]
 
         if len(mag_valid) == 0:
-            return None
+            return self.default_freq
 
         peak_idx = np.argmax(mag_valid)
         peak_mag = mag_valid[peak_idx]
 
         if peak_mag < self.fft_mag_threshold:
-            return None
+            return self.default_freq
 
         return float(freqs_valid[peak_idx])
 
